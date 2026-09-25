@@ -46,6 +46,11 @@ powershell -ExecutionPolicy Bypass -File serve.ps1
 
 Serve em `http://localhost:8123`. Ou simplesmente abra o `index.html` no navegador.
 
+## Showreel
+
+[`showreel/`](showreel/) — 15 segundos de motion design com a órbita como assunto, renderizados
+quadro a quadro a partir de um único `reel.html`, com trilha sintetizada no tempo dos cortes.
+
 ## Versões
 
 - `index.html` — versão atual
