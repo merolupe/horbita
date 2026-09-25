@@ -177,7 +177,9 @@
     ['Inter', 'inter-latin-600-normal', '600'], ['Inter', 'inter-latin-700-normal', '700'],
     ['JetBrains Mono', 'jetbrains-mono-latin-400-normal', '400'], ['JetBrains Mono', 'jetbrains-mono-latin-500-normal', '500'],
   ];
-  R.ready = Promise.all(FACES.map(f => new FontFace(f[0], 'url(fonts/' + f[1] + '.woff2)', { weight: f[2] }).load().then(ff => document.fonts.add(ff))));
+  /* a versão de arquivo único injeta as fontes como data: URI em window.REEL_FONTS */
+  const SRC = f => 'url(' + ((window.REEL_FONTS && window.REEL_FONTS[f]) || 'fonts/' + f + '.woff2') + ')';
+  R.ready = Promise.all(FACES.map(f => new FontFace(f[0], SRC(f[1]), { weight: f[2] }).load().then(ff => document.fonts.add(ff))));
 
   window.REEL = {
     ready: R.ready,
@@ -207,30 +209,76 @@
     },
   };
 
-  /* ---------- reprodução ao vivo (abrir o reel.html no navegador) ---------- */
+  /* ---------- reprodução ao vivo (abrir o reel.html no navegador) ----------
+     Parado, mostra a assinatura como pôster; o áudio é o relógio mestre. */
   if (/render/.test(location.search)) return;
   R.ready.then(() => {
-    const cv = window.REEL.setup(Math.min(1, (innerWidth * devicePixelRatio) / R.W));
+    const stage = document.getElementById('stage');
+    const box = stage.getBoundingClientRect();
+    const shown = Math.min(box.width, (box.height * 16) / 9) * (devicePixelRatio || 1);
+    const cv = window.REEL.setup(clamp(shown / R.W, 0.5, 1));
     const ctx = cv.getContext('2d');
+    /* sem ctx.filter o bloom viraria névoa: nesses navegadores ele fica de fora */
+    ctx.filter = 'blur(1px)';
+    const bloomOK = ctx.filter === 'blur(1px)';
+    ctx.filter = 'none';
     const au = document.getElementById('au'), gate = document.getElementById('gate');
-    let t0 = 0, paused = true, tp = 0;
-    const now = () => (paused ? tp : (performance.now() - t0) / 1000);
-    function seek(t) { tp = clamp(t, 0, R.DUR - 0.001); t0 = performance.now() - tp * 1000; if (au) au.currentTime = tp; }
-    function play() { paused = false; seek(tp >= R.DUR - 0.01 ? 0 : tp); if (au) au.play().catch(() => {}); gate.classList.add('off'); }
-    function pause() { tp = now(); paused = true; if (au) au.pause(); }
+    const lbl = gate.querySelector('.lbl');
+    const POSTER = 14.3;
+    let state = 'idle', t0 = 0, tp = 0, drawn = -1;
+    const clock = () => (performance.now() - t0) / 1000;
+    function show(text, soft) {
+      lbl.textContent = text;
+      gate.setAttribute('aria-label', text);
+      gate.classList.toggle('soft', !!soft);
+      gate.hidden = false;
+    }
+    function play() {
+      if (state !== 'paused') tp = 0;
+      t0 = performance.now() - tp * 1000;
+      if (au) { try { au.currentTime = tp; } catch (e) {} au.play().catch(() => {}); }
+      state = 'playing';
+      gate.hidden = true;
+    }
+    function pause() { tp = clamp(clock(), 0, R.DUR - 0.001); state = 'paused'; if (au) au.pause(); show('Continuar', true); }
+    function end() { state = 'ended'; if (au) au.pause(); show('Assistir de novo'); }
+    function full() {
+      try {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else if (stage.requestFullscreen) stage.requestFullscreen().catch(() => {});
+      } catch (e) {}
+    }
     gate.addEventListener('click', play);
-    cv.addEventListener('click', () => (paused ? play() : pause()));
+    cv.addEventListener('click', () => (state === 'playing' ? pause() : play()));
+    cv.addEventListener('dblclick', full);
     addEventListener('keydown', e => {
-      if (e.key === ' ') { e.preventDefault(); paused ? play() : pause(); }
-      if (e.key === 'ArrowRight') { pause(); seek(tp + 1 / R.FPS); }
-      if (e.key === 'ArrowLeft') { pause(); seek(tp - 1 / R.FPS); }
-      if (e.key === 'Home') seek(0);
+      if (e.key === ' ' || e.key === 'k') { e.preventDefault(); state === 'playing' ? pause() : play(); }
+      else if (e.key === 'f' || e.key === 'F') full();
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (state === 'playing') pause();
+        if (state !== 'paused') { tp = 0; state = 'paused'; show('Continuar', true); }
+        tp = clamp(tp + (e.key === 'ArrowRight' ? 1 : -1) / R.FPS, 0, R.DUR - 0.001);
+        if (au) { try { au.currentTime = tp; } catch (err) {} }
+      }
     });
+    show('Reproduzir com som');
     (function loop() {
-      let t = now();
-      if (!paused && t >= R.DUR) { seek(0); t = 0; if (au) au.play().catch(() => {}); }
-      R.draw(ctx, t, 1 / R.FPS);
-      R.bloom(ctx, cv, 1);
+      let t;
+      if (state === 'playing') {
+        t = clock();
+        /* segue o áudio: corrige o deslize acima de 40 ms (buffer, aba em segundo plano) */
+        if (au && !au.paused && au.currentTime > 0 && Math.abs(au.currentTime - t) > 0.04 && au.currentTime < R.DUR - 0.05) {
+          t0 -= (au.currentTime - t) * 1000;
+          t = clock();
+        }
+        if (t >= R.DUR) { end(); t = POSTER; }
+      } else t = state === 'paused' ? tp : POSTER;
+      if (state === 'playing' || t !== drawn) {
+        R.draw(ctx, t, 1 / R.FPS);
+        if (bloomOK) R.bloom(ctx, cv, 1);
+        drawn = state === 'playing' ? -1 : t;
+      }
       requestAnimationFrame(loop);
     })();
   });

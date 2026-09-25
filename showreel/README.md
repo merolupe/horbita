@@ -6,7 +6,7 @@ Oito compassos, um por cena, e cada corte cai numa batida.
 [![Quadro do reel: varredura do FiscalBot](poster.jpg)](orbita-showreel.mp4)
 
 ▶ **[orbita-showreel.mp4](orbita-showreel.mp4)** · ou abra o [`reel.html`](reel.html) para assistir ao vivo
-(espaço pausa, ← → anda quadro a quadro)
+(parado, mostra a assinatura como pôster; espaço pausa, ← → anda quadro a quadro, F tela cheia)
 
 ## Roteiro
 

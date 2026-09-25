@@ -2,23 +2,46 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>órbita · showreel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Órbita Showreel</title>
 <meta name="description" content="Showreel de 15 segundos da vitrine órbita — renderizado quadro a quadro a partir deste mesmo arquivo." />
 <style>
-  html,body{margin:0;height:100%;background:#07090E;overflow:hidden}
-  #c{position:fixed;inset:0;width:100vw;height:100vh;object-fit:contain;display:block;cursor:pointer}
-  #gate{position:fixed;inset:0;display:grid;place-content:center;justify-items:center;gap:14px;
-    background:rgba(7,9,14,.55);color:#F3F5F9;cursor:pointer;
-    font:500 12px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;
-    transition:opacity .4s}
-  #gate.off{opacity:0;pointer-events:none}
-  #gate b{display:grid;place-items:center;width:64px;height:64px;border:1px solid #2B323F;font-size:18px;color:#35C285}
-  #gate span{color:#98A1B1}
+  /* o reel vive num mundo escuro só, como o painel do sistema no site */
+  :root{color-scheme:dark;
+    --bg:#07090E;--ink:#F3F5F9;--ink-2:#98A1B1;--line:#2B323F;--acc:#35C285;
+    --scrim:rgba(7,9,14,.58)}
+  html,body{height:100%}
+  body{margin:0;overflow:hidden;background:var(--bg);color:var(--ink);
+    font:500 12px/1.5 "JetBrains Mono",ui-monospace,"SF Mono",Consolas,monospace}
+  #stage{position:relative;box-sizing:border-box;height:100%;padding-inline:16px;display:grid;place-items:center;background:var(--bg)}
+  #c{display:block;width:100%;height:100%;object-fit:contain;cursor:pointer}
+  /* convite no rodapé: o pôster (a assinatura) fica inteiro e nítido acima */
+  #gate{position:absolute;left:0;right:0;bottom:0;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+    gap:10px 16px;margin:0;border:0;padding:56px 16px max(24px,5vh);
+    background:linear-gradient(to top,var(--scrim) 35%,rgba(7,9,14,0));color:var(--ink);cursor:pointer;
+    font:inherit;letter-spacing:.18em;text-transform:uppercase;text-align:left}
+  #gate[hidden]{display:none}
+  #gate .btn{display:grid;place-items:center;flex:none;width:48px;height:48px;border:1px solid var(--line);
+    background:var(--bg);color:var(--acc);transition:border-color .2s}
+  #gate .btn svg{width:16px;height:16px;display:block}
+  #gate:hover .btn,#gate:focus-visible .btn{border-color:var(--acc)}
+  #gate:focus-visible{outline:none}
+  #gate .txt{display:grid;gap:4px}
+  #gate .meta{color:var(--ink-2);letter-spacing:.12em}
+  /* pausado: só o botão, o quadro fica limpo para ser examinado */
+  #gate.soft{background:none}
+  #gate.soft .txt{display:none}
+  @media (prefers-reduced-motion:reduce){#gate .btn{transition:none}}
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080" aria-label="órbita — showreel"></canvas>
+<main id="stage">
+  <canvas id="c" width="1920" height="1080" aria-label="órbita — showreel"></canvas>
+  <button id="gate" type="button">
+    <span class="btn" aria-hidden="true"><svg viewBox="0 0 18 18"><path d="M4 2.5v13l11-6.5z" fill="currentColor"/></svg></span>
+    <span class="txt"><span class="lbl">Reproduzir com som</span><span class="meta">15 s · espaço pausa · F tela cheia</span></span>
+  </button>
+</main>
 <!-- limiar do bloom: só o que é claro de verdade brilha -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <filter id="thr" color-interpolation-filters="sRGB">
@@ -30,7 +53,6 @@
   </filter>
 </svg>
 <audio id="au" src="soundtrack.mp3" preload="auto"></audio>
-<div id="gate"><b>▶</b><span>Reproduzir · espaço pausa · ← → quadro a quadro</span></div>
 <script src="js/core.js"></script>
 <script src="js/world.js"></script>
 <script src="js/scene-open.js"></script>
